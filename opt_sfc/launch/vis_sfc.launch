@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <node name="rviz" pkg="rviz" type="rviz" output="screen"
+    args="-d $(find opt_sfc)/config/sim_sfc.rviz"> 
+  </node>
+  
+</launch>

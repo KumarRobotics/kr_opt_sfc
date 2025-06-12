@@ -1,0 +1,65 @@
+TargetTopic:                '/move_base_simple/goal'
+
+MaxVelBox:                  3.0
+
+MaxAccBox:                  3.0
+
+OptOrder:                   3 # 3 for jerk, 4 for snap
+
+InflateRange:               2.0
+
+TestNum:                    1
+
+Seed:                       5
+
+DistRange:                  [10, 100]
+
+MaxIter:                    10
+
+sfc_cover_opt:
+  max_iter: 5
+  max_inner_iter: 1
+  max_time: 1.0
+  progress: 4.0
+  debug: true
+  parallel: true
+  smooth_mu: 1.0e-2
+  epsilon: 1.0e-5
+  rho: 1.0e+5
+  damping : 0.95
+  obj_type: 0 # support min distance now
+
+
+###### planning
+
+MaxVelMag:                  3.0
+
+MaxBdrMag:                  2.1
+
+MaxTiltAngle:               1.05
+
+MinThrust:                  2.0
+
+MaxThrust:                  12.0
+
+VehicleMass:                0.61
+
+GravAcc:                    9.8
+
+HorizDrag:                  0.70
+
+VertDrag:                   0.80
+
+ParasDrag:                  0.01
+
+SpeedEps:                   0.0001
+
+WeightT:                    20.0
+
+ChiVec:                     [1.0e+4, 1.0e+4, 1.0e+4, 1.0e+4, 1.0e+5]
+
+SmoothingEps:               1.0e-2
+
+IntegralIntervs:            16
+
+RelCostTol:                 1.0e-5

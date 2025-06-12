@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <arg name="map_frame_id" default="odom"/>
+  <arg name="map_size_x" default="20"/>
+  <arg name="map_size_y" default="10"/>
+  <arg name="map_size_z" default="3"/>
+  <arg name="map_x_origin" default="-10.0"/>
+  <arg name="map_y_origin" default="-5.0"/>
+  <arg name="map_z_origin" default="-0.1"/>
+
+
+  <arg name="cloud" default="/structure_map/global_gridmap"/>
+  <arg name='if_visualize' default='true'/>
+  <arg name='seed' default='1000'/>
+
+
+	<group if="$(arg if_visualize)">
+		<include file="$(find opt_sfc)/launch/vis_sfc.launch"/>
+	</group>
+
+
+  <node pkg ="param_env" name ="structure_map" type ="structure_map" output = "screen">    
+    <!-- this is the map init position, not the odom-->
+    <remap from="~global_cloud" to="$(arg cloud)"/>
+
+    <param name="map/x_size"     value="$(arg map_size_x)" />
+    <param name="map/y_size"     value="$(arg map_size_y)" />
+    <param name="map/z_size"     value="$(arg map_size_z)" />
+    <param name="map/x_origin"   value="$(arg map_x_origin)"/>
+    <param name="map/y_origin"   value="$(arg map_y_origin)"/>
+    <param name="map/z_origin"   value="$(arg map_z_origin)"/>
+
+    <param name="map/resolution" value="0.1"/>        
+    <param name="map/frame_id"     value="$(arg map_frame_id)" />
+    <param name="map/inflate_radius" value="0.0"/> <!-- 0.3 m-->
+    
+    <!-- randomly change the map without trigger -->
+    <param name="map/auto_change"    value="false"/>
+
+    <!-- total obstacle ratios -->
+    <param name="params/cylinder_ratio" value="0.15" type="double"/>
+    <param name="params/circle_ratio"   value="0.01" type="double"/> <!-- 0.1 x others -->
+    <param name="params/gate_ratio"     value="0.012" type="double"/> <!-- 0.1 x others -->
+    <param name="params/ellip_ratio"    value="0.05" type="double"/>
+    <param name="params/poly_ratio"     value="0.05" type="double"/>
+
+    <param name="params/w1" value="0.1"/>
+    <param name="params/w2" value="0.7"/>          
+    <param name="params/w3" value="1.8"/>
+
+    <!-- add gaussion noise with param/w1 range on it -->
+    <param name="params/add_noise" value="false"/>
+    <param name="params/seed" value="$(arg seed)"/>
+
+    <param name="dyn/dt"        value="0.1"/>
+    <!-- to generate map dataset in this folder -->
+    <param name="dataset/save_map"    value="true"/>
+    <param name="dataset/samples_num" value="100"/>
+    <param name="dataset/start_index" value="5080900"/>
+    <param name="dataset/path"        value="$(find param_env)/dataset/"/>
+    <param name="dyn/dyn_mode"        value="false"/>
+    
+  </node>
+
+
+  <node pkg="opt_sfc" type="sfc" name="sfc_node" output="screen">
+    <rosparam file="$(find opt_sfc)/config/sfc.yaml" command="load" />
+
+    <param name="frame_id"    value="$(arg map_frame_id)" />
+    <param name="MapTopic"    value="$(arg cloud)" />
+
+    <param name="map/x_size"     value="$(arg map_size_x)" />
+    <param name="map/y_size"     value="$(arg map_size_y)" />
+    <param name="map/z_size"     value="$(arg map_size_z)" />
+    <param name="map/x_origin"   value="$(arg map_x_origin)"/>
+    <param name="map/y_origin"   value="$(arg map_y_origin)"/>
+    <param name="map/z_origin"   value="$(arg map_z_origin)"/>
+
+    <param name="map/resolution"  value="0.1"/>        
+    <param name="map/inflate_radius" value="0.2"/> 
+
+  </node>
+
+</launch>
