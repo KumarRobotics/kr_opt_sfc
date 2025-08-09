@@ -32,9 +32,51 @@ If this repo helps your research, please cite our paper at:
 - Front-end Path Planning: We use [OMPL](https://ompl.kavrakilab.org/) planning library
 - Planning Modules and Visualization: We use the module in [GCOPTER](https://github.com/ZJU-FAST-Lab/GCOPTER)
 
-## Run 
+
+## Run in Docker
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/KumarRobotics/kr_opt_sfc.git
+```
+
+### 2. Build the Docker image
+
+Replace `$(whoami)` with your local username if needed.
+
+```bash
+docker build --build-arg user_name=$(whoami) -t opt_sfc .
+```
+
+### 3. Run the Docker container
+
+Mount your local repo inside the container to `/home/<username>/opt_sfc_ws/src/kr_opt_sfc` for development.
+
+```bash
+docker run -it \
+    -v $(pwd)/kr_opt_sfc:/home/$(whoami)/opt_sfc_ws/src/kr_opt_sfc \
+    --env="DISPLAY" \
+    --env="QT_X11_NO_MITSHM=1" \
+    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    opt_sfc
+```
+
+### 4. Inside the container
+
+Build and launch your ROS workspace:
+
+```bash
+catkin build
+source devel/setup.bash
+roslaunch opt_sfc sfc.launch
+```aunch opt_sfc sfc.launch
+```
+
+## Run from Source
 
 The repo has been tested on 20.04 with ros-desktop-full installation.
+
 
 ### 1. Prerequisites
 
@@ -48,8 +90,11 @@ sudo apt install libompl-dev
 ### 2. Build on ROS 
 
 ```
-git clone git@github.com:KumarRobotics/kr_opt_sfc.git && cd kr_opt_sfc/src
-wstool init && wstool merge utils.rosinstall && wstool update
+mkdir -p opt_ws/src
+cd opt_ws/src
+git clone git@github.com:KumarRobotics/kr_opt_sfc.git
+wstool init && wstool merge kr_opt_sfc/utils.rosinstall && wstool update
+cd ..
 catkin build
 ```
 
@@ -60,7 +105,7 @@ source devel/setup.bash
 roslaunch opt_sfc sfc.launch
 ```
 
-In "kr_opt_sfc/src/opt_sfc/config/sfc.yaml", change paramters to test different performance. 
+In "kr_opt_sfc/src/opt_sfc/config/sfc.yaml", change paramters to test different performance. The default is debug mode to show each iteration.
 
 ## Maintaince
 
