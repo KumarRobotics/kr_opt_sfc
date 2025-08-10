@@ -39,7 +39,7 @@
     <param name="map/auto_change"    value="false"/>
 
     <!-- total obstacle ratios -->
-    <param name="params/cylinder_ratio" value="0.15" type="double"/>
+    <param name="params/cylinder_ratio" value="0.12" type="double"/>
     <param name="params/circle_ratio"   value="0.01" type="double"/> <!-- 0.1 x others -->
     <param name="params/gate_ratio"     value="0.012" type="double"/> <!-- 0.1 x others -->
     <param name="params/ellip_ratio"    value="0.05" type="double"/>
@@ -55,7 +55,7 @@
 
     <param name="dyn/dt"        value="0.1"/>
     <!-- to generate map dataset in this folder -->
-    <param name="dataset/save_map"    value="true"/>
+    <param name="dataset/save_map"    value="false"/>
     <param name="dataset/samples_num" value="100"/>
     <param name="dataset/start_index" value="5080900"/>
     <param name="dataset/path"        value="$(find param_env)/dataset/"/>

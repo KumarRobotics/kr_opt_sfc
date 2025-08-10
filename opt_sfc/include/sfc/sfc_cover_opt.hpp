@@ -110,11 +110,12 @@ namespace sco
                 std::cout << "only one segment" << std::endl;
                 return false;
             }
+
+            std::cout << "waypoints size: " << waypoints.size() << std::endl;
             
             ros::Time start = ros::Time::now();
             std::vector<Eigen::Vector3d> sub_points;
             sub_points.reserve(waypoints.size() * 2);
-            
             sub_points.push_back(waypoints[0]); 
             
             for (size_t i = 0; i < waypoints.size() - 1; ++i)
@@ -144,6 +145,7 @@ namespace sco
 
             std::cout << "sub_points size: " << sub_points.size() << std::endl;
             seg_num = sub_points.size() - 1;
+
 
             //map wps to points
             EllipsoidsR cur_ellips;
@@ -315,6 +317,7 @@ namespace sco
             }
         }
         
+
         void findOptEllipsoids(const Eigen::Matrix3Xd &wps,
                                const PolyhedraH &hPolys,
                                const Eigen::Matrix2Xd &y,
@@ -374,8 +377,9 @@ namespace sco
                         valid_pc.emplace_back(p);
                     }
                 }
+
                 Eigen::Map<const Eigen::Matrix<double, 3, -1, Eigen::ColMajor>> pc(valid_pc[0].data(), 3, valid_pc.size());
-                    
+
                 Eigen::Matrix3d R;
                 Eigen::Vector3d d, r;
 

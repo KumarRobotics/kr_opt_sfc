@@ -305,7 +305,59 @@ public:
         return;
     }
 
-    
+
+    void visualizePolytope2D(const std::vector<Eigen::Matrix2Xd> &allTris)
+    {
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = frame_id;   // Change to your frame
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "polytope";
+        marker.id = 0;
+        marker.type = visualization_msgs::Marker::LINE_LIST;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.scale.x = 0.05;  // line width
+        marker.scale.y = 0.5;
+        marker.scale.z = 0.5;
+        marker.color.r = 1.0f;
+        marker.color.g = 0.6f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0f;
+        marker.pose.orientation.w = 1.0; // No rotation
+
+
+        // // Clear points
+        // marker.points.clear();
+
+        // For each polygon in allTris
+        for (size_t i = 0; i < allTris.size(); ++i)
+        {
+            const auto& poly = allTris[i];
+            size_t n = poly.cols();
+
+            std::cout << "Polygon " << i << " has " << n << " points." << std::endl;
+
+            // Add edges between consecutive points and close polygon
+            for (size_t j = 0; j < n; ++j)
+            {
+                geometry_msgs::Point p1, p2;
+                p1.x = poly(0, j);
+                p1.y = poly(1, j);
+                p1.z = 0.1;
+
+                size_t next_idx = (j + 1) % n;
+                p2.x = poly(0, next_idx);
+                p2.y = poly(1, next_idx);
+                p2.z = 0.1;
+
+                marker.points.push_back(p1);
+                marker.points.push_back(p2);
+            }
+        }
+
+
+        edgePub.publish(marker);
+    }
+
 
     inline void visualizeEllipsoids(const std::vector<Eigen::Matrix3d> &Rs,
                                    const std::vector<Eigen::Vector3d> &ds,

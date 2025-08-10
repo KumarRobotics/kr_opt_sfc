@@ -15,6 +15,12 @@
 #include <ompl/control/SimpleSetup.h>
 #include <ompl/control/SpaceInformation.h>
 #include <ompl/control/spaces/RealVectorControlSpace.h>
+#include <ompl/geometric/PathSimplifier.h>
+#include <ompl/base/ScopedState.h>
+#include <ompl/base/SpaceInformation.h>
+#include <ompl/geometric/planners/rrt/RRTstar.h>
+#include <ompl/geometric/PathGeometric.h>
+#include <ompl/geometric/PathSimplifier.h>
 
 #include <deque>
 #include <memory>
@@ -24,21 +30,80 @@ namespace plan_path
 {
     namespace oc = ompl::control;
     namespace ob = ompl::base;
+    namespace og = ompl::geometric;
+
+    template <typename Map>
+    void shortcutPath(std::vector<Eigen::Vector3d> &p, Map* mapPtr, 
+        const Eigen::Vector3d &lb, const Eigen::Vector3d &hb, 
+        double threshold = 0.8)
+    {
+        if (p.size() <= 2)
+            return;  // Nothing to shortcut
+
+        auto isCollisionFree = [&](const Eigen::Vector3d &start, const Eigen::Vector3d &end) {
+            // Simple collision check along line segment using small steps
+            const int steps = 20;
+            for (int i = 0; i <= steps; ++i)
+            {
+                double t = double(i) / steps;
+                Eigen::Vector3d pos = start + t * (end - start);
+
+                // Check bounds if needed
+                if ((pos.array() < lb.array()).any() || (pos.array() > hb.array()).any())
+                    return false;
+
+                if (mapPtr->query(pos) != 0)  // Assume non-zero means obstacle
+                    return false;
+            }
+            return true;
+        };
+
+        size_t i = 0;
+        while (i < p.size() - 2)
+        {
+            size_t k = i + 2;
+            while (k < p.size())
+            {
+                double directDist = (p[k] - p[i]).norm();
+                double oldDist = 0;
+                for (size_t idx = i; idx < k; ++idx)
+                    oldDist += (p[idx + 1] - p[idx]).norm();
+
+                if (oldDist - directDist < threshold && isCollisionFree(p[i], p[k]))
+                {
+                    // Remove intermediate points between i and k
+                    p.erase(p.begin() + i + 1, p.begin() + k);
+                    // After erasing, check from the same i again
+                    k = i + 2;
+                }
+                else
+                {
+                    ++k;
+                }
+            }
+            ++i;
+        }
+    }
+
 
     template <typename Map>
     inline double planPath(const Eigen::Vector3d &s,
-                           const Eigen::Vector3d &g,
-                           const Eigen::Vector3d &lb,
-                           const Eigen::Vector3d &hb,
-                           Map *mapPtr,
-                           const double &timeout,
-                           const double &goal_tol,
-                           std::vector<Eigen::Vector3d> &p)
+                        const Eigen::Vector3d &g,
+                        const Eigen::Vector3d &lb,
+                        const Eigen::Vector3d &hb,
+                        Map *mapPtr,
+                        const double &timeout,
+                        const double &goal_tol,
+                        std::vector<Eigen::Vector3d> &p)
     {
-        auto space(std::make_shared<ompl::base::RealVectorStateSpace>(3));
+        using namespace ompl;
+        namespace ob = ompl::base;
+        namespace og = ompl::geometric;
+
         p.clear();
 
-        ompl::base::RealVectorBounds bounds(3);
+        auto space = std::make_shared<ob::RealVectorStateSpace>(3);
+        ob::RealVectorBounds bounds(3);
         bounds.setLow(0, 0.0);
         bounds.setHigh(0, hb(0) - lb(0));
         bounds.setLow(1, 0.0);
@@ -47,20 +112,19 @@ namespace plan_path
         bounds.setHigh(2, hb(2) - lb(2));
         space->setBounds(bounds);
 
-        auto si(std::make_shared<ompl::base::SpaceInformation>(space));
-
+        auto si = std::make_shared<ob::SpaceInformation>(space);
         si->setStateValidityChecker(
-            [&](const ompl::base::State *state)
+            [&](const ob::State *state)
             {
-                const auto *pos = state->as<ompl::base::RealVectorStateSpace::StateType>();
-                const Eigen::Vector3d position(lb(0) + (*pos)[0],
-                                               lb(1) + (*pos)[1],
-                                               lb(2) + (*pos)[2]);
+                const auto *pos = state->as<ob::RealVectorStateSpace::StateType>();
+                Eigen::Vector3d position(lb(0) + (*pos)[0],
+                                        lb(1) + (*pos)[1],
+                                        lb(2) + (*pos)[2]);
                 return mapPtr->query(position) == 0;
             });
         si->setup();
 
-        ompl::base::ScopedState<> start(space), goal(space);
+        ob::ScopedState<> start(space), goal(space);
         start[0] = s(0) - lb(0);
         start[1] = s(1) - lb(1);
         start[2] = s(2) - lb(2);
@@ -68,39 +132,42 @@ namespace plan_path
         goal[1]  = g(1) - lb(1);
         goal[2]  = g(2) - lb(2);
 
-        auto pdef(std::make_shared<ompl::base::ProblemDefinition>(si));
+        auto pdef = std::make_shared<ob::ProblemDefinition>(si);
         pdef->setStartAndGoalStates(start, goal, goal_tol);
-         
-        double dis = (s - g).norm();
+
+        double dis = 1.8 * (s - g).norm();
         ob::OptimizationObjectivePtr obj(new ob::PathLengthOptimizationObjective(si));
         obj->setCostThreshold(ob::Cost(dis));
         pdef->setOptimizationObjective(obj);
 
-        auto planner(std::make_shared<ompl::geometric::RRTstar>(si));
+        auto planner = std::make_shared<og::InformedRRTstar>(si);
         planner->setProblemDefinition(pdef);
         planner->setup();
-
         ompl::base::PlannerStatus solved;
         solved = planner->ompl::base::Planner::solve(timeout);
 
         double cost = INFINITY;
 
-        if (solved == ompl::base::PlannerStatus::EXACT_SOLUTION)
+        if (solved == ob::PlannerStatus::EXACT_SOLUTION)
         {
+            auto pathPtr = std::dynamic_pointer_cast<og::PathGeometric>(pdef->getSolutionPath());
+            std::cout << "Waypoint count before smoothing: " << pathPtr->getStateCount() << "\n";
+
             p.clear();
-            const ompl::geometric::PathGeometric path_ =
-                ompl::geometric::PathGeometric(
-                    dynamic_cast<const ompl::geometric::PathGeometric &>(*pdef->getSolutionPath()));
-            for (size_t i = 0; i < path_.getStateCount(); i++)
+            for (size_t i = 0; i < pathPtr->getStateCount(); ++i)
             {
-                const auto state = path_.getState(i)->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+                const auto state = pathPtr->getState(i)->as<ob::RealVectorStateSpace::StateType>()->values;
                 p.emplace_back(lb(0) + state[0], lb(1) + state[1], lb(2) + state[2]);
             }
-            cost = pdef->getSolutionPath()->cost(pdef->getOptimizationObjective()).value();
+
+            shortcutPath(p, mapPtr, lb, hb, 0.5);
+
+            cost = pathPtr->cost(pdef->getOptimizationObjective()).value();
         }
 
         return cost;
     }
+
 
     template <typename Map>
     inline void dyplanPath(const Eigen::Matrix3d &s,

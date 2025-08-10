@@ -14,14 +14,12 @@ Seed:                       5
 
 DistRange:                  [10, 100]
 
-MaxIter:                    10
-
 sfc_cover_opt:
   max_iter: 5
   max_inner_iter: 1
   max_time: 1.0
   progress: 4.0
-  debug: true
+  debug: false
   parallel: true
   smooth_mu: 1.0e-2
   epsilon: 1.0e-5

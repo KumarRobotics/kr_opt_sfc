@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <arg name="map_frame_id" default="odom"/>
+  <arg name="map_size_x" default="20"/>
+  <arg name="map_size_y" default="10"/>
+  <arg name="map_size_z" default="1.0"/>
+  <arg name="map_x_origin" default="-10.0"/>
+  <arg name="map_y_origin" default="-5.0"/>
+  <arg name="map_z_origin" default="-0.05"/>
+
+
+  <arg name="cloud" default="/structure_map/global_gridmap"/>
+  <arg name='if_visualize' default='true'/>
+  <arg name='seed' default='1000'/>
+
+
+	<group if="$(arg if_visualize)">
+		<include file="$(find opt_sfc)/launch/vis_sfc.launch"/>
+	</group>
+
+  <arg name="clear_path"  default="$(find param_env)/clear_pos/clear_3d.csv"  />
+  
+  <node pkg ="param_env" name ="read_grid_map" type ="read_grid_map" output = "screen">    
+    <!-- this is the map init position, not the odom-->
+    <remap from="~global_gridmap" to="$(arg cloud)"/>
+
+    <param name="map/x_size"     value="$(arg map_size_x)" />
+    <param name="map/y_size"     value="$(arg map_size_y)" />
+    <param name="map/z_size"     value="$(arg map_size_z)" />
+    <param name="map/x_origin"   value="$(arg map_x_origin)"/>
+    <param name="map/y_origin"   value="$(arg map_y_origin)"/>
+    <param name="map/z_origin"   value="$(arg map_z_origin)"/>
+
+    <param name="map/resolution"    value="0.1"/>        
+    <param name="map/frame_id"      value="$(arg map_frame_id)" />
+    <param name="map/inflate_radius" value="0.2"/> <!-- 0.3 m-->
+
+    <param name="clear_path" value="$(arg clear_path)"/>
+
+
+    <!-- randomly change the map without trigger -->
+    <param name="map/auto_change"    value="false"/>
+
+    <!-- another topic to publish point with inflation-->
+    <param name="map/publish_grid_centers"  value="true"/>
+
+    <!-- map mode 
+           0 randomly generate
+           1 read the image
+           2 read the ros bag poind cloud 1
+           3 read the ros bag poind cloud 2
+           4 read pcd file -->
+    <param name="map/mode"       value="1" />
+
+    <!-- for multi-map reader, set folder path and use_folder as true -->
+    <param name="folder_path" value="$(find param_env)/data/img/maze/"/>
+    <param name="use_folder"  value="true"/>
+
+    <!-- mode 1 eg -->
+    <param name="file_path" value="$(find param_env)/data/img/maze/maze8.png"/>
+    <param name="img/negate" value="0"/>
+    <param name="img/occ_th" value="0.6"/>
+
+    <!-- mode 12 eg -->
+    <!-- <param name="file_path" value="$(find param_env)/data/pc1/levine/levine.bag"/>
+    <param name="bag_topic" value="/cloud"/> -->
+
+    <!-- mode 3 eg -->
+    <!-- <param name="file_path" value="$(find param_env)/data/pc2/iss_obs.bag"/>
+    <param name="bag_topic" value="/obs_points"/>  -->
+    <!-- point clouds topic name in the bag file -->
+
+    <!-- mode 4 eg -->
+    <!-- <param name="file_path" value="$(find param_env)/data/pcd/cloud_0917.pcd"/> -->
+
+  </node>
+
+  <node pkg="opt_sfc" type="sfc" name="sfc_node" output="screen">
+    <rosparam file="$(find opt_sfc)/config/sfc.yaml" command="load" />
+
+    <param name="frame_id"    value="$(arg map_frame_id)" />
+    <param name="MapTopic"    value="$(arg cloud)" />
+    <param name="Use2D"       value="true"/>
+
+    <param name="map/x_size"     value="$(arg map_size_x)" />
+    <param name="map/y_size"     value="$(arg map_size_y)" />
+    <param name="map/z_size"     value="$(arg map_size_z)" />
+    <param name="map/x_origin"   value="$(arg map_x_origin)"/>
+    <param name="map/y_origin"   value="$(arg map_y_origin)"/>
+    <param name="map/z_origin"   value="$(arg map_z_origin)"/>
+
+    <param name="map/resolution"  value="0.1"/>        
+    <param name="map/inflate_radius" value="0.2"/> 
+
+  </node>
+
+</launch>

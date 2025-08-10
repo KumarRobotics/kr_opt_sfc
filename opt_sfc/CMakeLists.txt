@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(opt_sfc)
 
-set(CMAKE_CXX_FLAGS "-std=c++14")
+set(CMAKE_CXX_FLAGS "-std=c++17")
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -fPIC")
 
@@ -38,4 +38,4 @@ target_link_libraries(sfc
   )
 
 set_property(TARGET sfc 
-  PROPERTY CXX_STANDARD 14)
+  PROPERTY CXX_STANDARD 17)

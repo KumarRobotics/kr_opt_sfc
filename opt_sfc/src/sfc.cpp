@@ -11,6 +11,7 @@
 #include "sfc/sfc_cover_opt.hpp"
 #include "sfc/plan_path.hpp"
 
+#include <iostream>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -40,7 +41,7 @@ private:
     int optOrder;
     double inflateRange;
     int mode;
-    int testNum, maxIter;
+    int testNum;
     int curTestNum = 0;
     std::vector<double> distRange;
 
@@ -53,11 +54,15 @@ private:
     sco::OptConvexCover opt_convex_cover;
     int map_id = 0;
 
+    bool use2D = false;
+
 
 public:
     SFCServer(ros::NodeHandle &nh_, ros::NodeHandle &nh_private)
         : nh(nh_), mapInitialized(false), opt_convex_cover(nh_private)
     {
+
+        nh_private.getParam("Use2D", use2D);
         nh_private.getParam("MapTopic", mapTopic);
         nh_private.getParam("TargetTopic", targetTopic);
         nh_private.getParam("OptOrder", optOrder);
@@ -67,7 +72,6 @@ public:
 
         distRange.resize(2);
         nh_private.getParam("DistRange", distRange);
-        nh_private.getParam("MaxIter", maxIter);
 
         //seed number
         int seed;
@@ -112,17 +116,19 @@ public:
 
     inline void mapCallBack(const sensor_msgs::PointCloud2::ConstPtr &msg)
     {
-        const Eigen::Vector3i xyz((mapBound[1] - mapBound[0]) / voxelWidth,
-                                (mapBound[3] - mapBound[2]) / voxelWidth,
-                                (mapBound[5] - mapBound[4]) / voxelWidth);
+        int sizeX = (mapBound[1] - mapBound[0]) / voxelWidth;
+        int sizeY = (mapBound[3] - mapBound[2]) / voxelWidth;
+        int sizeZ = (mapBound[5] - mapBound[4]) / voxelWidth;
 
-        const Eigen::Vector3d offset(mapBound[0], mapBound[2], mapBound[4]);
+        const Eigen::Vector3i xyz(sizeX, sizeY, sizeZ);
+        const Eigen::Vector3d offset(mapBound[0], mapBound[2], use2D ? 0.0 : mapBound[4]);
 
         voxelMap = voxel_map::VoxelMap(xyz, offset, voxelWidth);
 
         size_t cur = 0;
         const size_t total = msg->data.size() / msg->point_step;
         float *fdata = (float *)(&msg->data[0]);
+
         for (size_t i = 0; i < total; i++)
         {
             cur = msg->point_step / sizeof(float) * i;
@@ -133,36 +139,35 @@ public:
             {
                 continue;
             }
-            voxelMap.setOccupied(Eigen::Vector3d(fdata[cur + 0],
-                                                    fdata[cur + 1],
-                                                    fdata[cur + 2]));
+
+            double x = fdata[cur + 0];
+            double y = fdata[cur + 1];
+            double z = fdata[cur + 2];  // flatten z to 0 for 2D
+
+            voxelMap.setOccupied(Eigen::Vector3d(x, y, z));
         }
 
-        voxelMap.dilate(std::ceil(dilateRadius / voxelMap.getScale()));
+        int dilateIterations = std::ceil(dilateRadius / voxelMap.getScale());
+
+        std::cout << "Dilate Voxel Map with radius: " << dilateRadius
+                  << ", iterations: " << dilateIterations << std::endl;
+
+        voxelMap.dilate(dilateIterations);
 
         mapInitialized = true;
         map_id += 1;
 
-
-        //call oneSampleTest
-        if (mode == 1)
+        // call oneSampleTest
+        int loopCount = (mode == 1) ? 20 : testNum;
+        for (int i = 0; i < loopCount; i++)
         {
-            for (int i = 0; i < 20; i++)
-            {   
-                oneSampleTest();
-            }
-        }else
-        {
-            for (int i = 0; i < testNum; i++)
-            {   
-                oneSampleTest();
-            }
+            oneSampleTest();
         }
     }
 
+
     inline void plan(voxel_map::VoxelMap &curMap)
     {   
-
         if (mode >= 1)
         {
             if (curTestNum == testNum)
@@ -179,31 +184,47 @@ public:
 
         if (startGoal.size() == 2)
         {
+            // Prepare start and goal states
             Eigen::MatrixXd iniState(3, 3), finState(3, 3);
 
-            iniState << startGoal.front(), Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero();
-            finState << startGoal.back(), Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero();
-            printf("\033[32m ======================== New Try : %d ======================== \033[0m\n", curTestNum);
-            std::cout << "Start: " << startGoal.front().transpose() << std::endl;
-            std::cout << "Goal: " << startGoal.back().transpose() << std::endl;
+            Eigen::Vector3d startPt = startGoal.front();
+            Eigen::Vector3d goalPt  = startGoal.back();
 
-            /***step one: generate a init path***/
+            // Flatten z coordinate if using 2D
+            if (use2D)
+            {
+                startPt.z() = 0.0;
+                goalPt.z() = 0.0;
+            }
+
+            iniState << startPt, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero();
+            finState << goalPt, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero();
+
+            printf("\033[32m ======================== New Try : %d ======================== \033[0m\n", curTestNum);
+            std::cout << "Start: " << startPt.transpose() << std::endl;
+            std::cout << "Goal: " << goalPt.transpose() << std::endl;
+
+            /*** step one: generate an initial path ***/
             std::vector<Eigen::Vector3d> route;
-            plan_path::planPath<voxel_map::VoxelMap>(startGoal[0],
-                                                    startGoal[1],
-                                                    curMap.getOrigin(),
-                                                    curMap.getCorner(),
-                                                    &curMap, 0.1, 0.2,
-                                                    route);
-            
+
+            plan_path::planPath<voxel_map::VoxelMap>(
+                startPt,
+                goalPt,
+                curMap.getOrigin(),
+                curMap.getCorner(),
+                &curMap, 
+                0.2, 0.2,
+                route);
+
             if (route.size() <= 2)
             {
                 ROS_WARN("No Path Found or Not enough points!!!\n");
                 return;
             }
+
             visualizer.visualizePath(route);
 
-            /***step two: corridor generation***/
+            /*** step two: corridor generation ***/
             std::vector<Eigen::Vector3d> pc;
             curMap.getSurf(pc);
 
@@ -211,22 +232,48 @@ public:
             std::vector<Eigen::Matrix3d> Rs;
             std::vector<Eigen::Vector3d> ds;
             std::vector<Eigen::Vector3d> rs;
+
             auto t1 = std::chrono::high_resolution_clock::now();
-            //ros::Time t = ros::Time::now();
-            
+
             printf("\033[32m ================ opt_convex_cover: \033[0m");
-            opt_convex_cover.convexCover(iniState, finState, pc,
-                                        curMap.getOrigin(), 
-                                        curMap.getCorner(),             
-                                        inflateRange,
-                                        route, 
-                                        hpolys);
+            opt_convex_cover.convexCover(
+                iniState, finState, pc,
+                curMap.getOrigin(), 
+                curMap.getCorner(),             
+                inflateRange,
+                route, 
+                hpolys);
 
             auto t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> fp_ms = t2 - t1;
             std::cout << "convexCover time: " << fp_ms.count() << std::endl;
-            //std::cout << "ros time: " << (ros::Time::now() - t).toSec() << std::endl;
-            visualizer.visualizePolytope(hpolys);
+
+            if (use2D == true)
+            {
+                std::cout << "Using 2D mode, projecting to 2D" << std::endl;
+                std::vector<Eigen::MatrixX3d> projected;
+                std::vector<Eigen::Matrix2Xd> Points;
+                sfc_utils::projectHalfspacesTo2D(hpolys, projected, Points);
+
+                // Save projected to a .txt
+                // use ros file path
+                namespace fs = std::filesystem;
+                fs::path current_path = fs::current_path();
+                const std::string filename = current_path / "projected_2d.txt";
+                std::ofstream ofs(filename);
+
+                for (const auto &hull : projected) {
+                    ofs << hull << std::endl;
+                }
+
+                ofs.close();
+                std::cout << "Projected 2D Polytope: " << projected.size() << std::endl;
+                visualizer.visualizePolytope2D(Points);
+            }else
+            {
+                visualizer.visualizePolytope(hpolys);
+            }
+
 
             if (hpolys.size() == 0)
             {
@@ -236,7 +283,7 @@ public:
 
             Eigen::VectorXd evals(4);
             std::vector<Eigen::Vector3d> inner_pts;
-            bool valid = sfc_utils::evaluatehPolys(hpolys, startGoal[0], startGoal[1], evals, inner_pts);
+            bool valid = sfc_utils::evaluatehPolys(hpolys, startPt, goalPt, evals, inner_pts);
 
             std::cout << "Eval: " << evals.transpose() << std::endl;
 
@@ -246,7 +293,6 @@ public:
             }
 
             curTestNum += 1;
-
         }
 
         return;
@@ -288,59 +334,48 @@ public:
         return;
     }
 
+
     inline void oneSampleTest()
     {    
-        if (curTestNum > testNum)
+        if (curTestNum > testNum)  // No more tests
+            return;
+
+        std::cout << "One Sample Test !!! CurTestNum is: " << curTestNum << std::endl;
+
+        if (!mapInitialized)
         {
-            //std::cout << "All Tests Finished !!!\n";
+            ROS_WARN("Map Not Initialized !!!\n");
             return;
         }
-        std::cout << "One Sample Test !!! CurTestNum is: " << curTestNum << std::endl;
-        if (mapInitialized)
-        {
-            if (startGoal.size() >= 2)
-            {
-                startGoal.clear();
-            }
-            int max_try = 0;
-            while (startGoal.size() < 2 && max_try < 50)
-            {                
-                Eigen::Vector3d goal;
 
-                //std::cout << "=========-------------- " << std::endl;
-                goal(0) = rand_x_(eng_);
-                goal(1) = rand_y_(eng_);
-                goal(2) = rand_z_(eng_);
+        // Prepare start/goal storage
+        if (startGoal.size() >= 2)
+            startGoal.clear();
 
-                if (voxelMap.query(goal) == 0)
-                {   
-                    //if the goal is too close to the start, ignore it
-                    if (startGoal.size() == 1 && 
-                        ((goal - startGoal[0]).norm() < distRange[0]))
-                    {
-                        continue;
-                    }
-                    //std::cout << "==========goal; " << goal << std::endl;
-                    startGoal.emplace_back(goal);
-                }
-                else
-                {
-                    //ROS_WARN("Infeasible Position Selected !!!\n");
-                    //std::cout << "goal; " << goal << std::endl;
-                    
-                }
-                max_try += 1;
+        const int maxAttempts = 50;
+        for (int attempts = 0; attempts < maxAttempts && startGoal.size() < 2; ++attempts)
+        {                
+            Eigen::Vector3d goal(
+                rand_x_(eng_),
+                rand_y_(eng_),
+                use2D ? 0.0 : rand_z_(eng_)
+            );
 
-            }
+            // Skip if voxel is occupied
+            if (voxelMap.query(goal) != 0)
+                continue;
 
-            if (startGoal.size() == 2)
-            {
-                plan(voxelMap);
-            }
+            // Skip if goal too close to the start
+            if (!startGoal.empty() && (goal - startGoal[0]).norm() < distRange[0])
+                continue;
+
+            startGoal.emplace_back(goal);
         }
-        return;
+
+        // Run the plan if both points were found
+        if (startGoal.size() == 2)
+            plan(voxelMap);
     }
-    
 };
 
 int main(int argc, char **argv)

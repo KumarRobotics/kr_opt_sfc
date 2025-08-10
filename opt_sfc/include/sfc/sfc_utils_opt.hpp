@@ -382,116 +382,107 @@ namespace sfc_utils_opt
     }
 
     // not normalized polytopes
-    inline bool findOutPolytope(EllipsoidR ellip,
-                                PolyhedronH &hPoly,
+    inline bool findOutPolytope(const EllipsoidR& ellip,
+                                PolyhedronH& hPoly,
                                 double epsilon = 1.0e-6)
     {
-        
-        Eigen::MatrixX4d bd = ellip.bd;
-        Eigen::Matrix3Xd pc = ellip.pc;
-        Eigen::Matrix3d R = ellip.R;
-        Eigen::Vector3d d = ellip.d;
-        Eigen::Vector3d r = ellip.r;
+        const auto& bd = ellip.bd;       // Mx4
+        const auto& pc = ellip.pc;       // 3xN
+        const auto& R = ellip.R;         // 3x3
+        const auto& d = ellip.d;         // 3x1
+        const auto& r = ellip.r;         // 3x1
 
-        //convert the space to ball space
         const Eigen::Matrix3d forward = r.cwiseInverse().asDiagonal() * R.transpose();
         const Eigen::Matrix3d backward = R * r.asDiagonal();
 
-        
-        //compute the forward map boundary B, D, PC
-        const Eigen::MatrixX3d forwardB = bd.leftCols<3>() * backward;
-        const Eigen::VectorXd  forwardD = bd.rightCols<1>() + bd.leftCols<3>() * d;
-        const Eigen::Matrix3Xd forwardPC = forward * (pc.colwise() - d);
-        const Eigen::VectorXd distDs = forwardD.cwiseAbs().cwiseQuotient(forwardB.rowwise().norm());
-        
+        const Eigen::MatrixX3d forwardB = bd.leftCols<3>() * backward;           // Mx3
+        const Eigen::VectorXd forwardD = bd.rightCols<1>() + bd.leftCols<3>() * d;  // Mx1
+        const Eigen::Matrix3Xd forwardPC = forward * (pc.colwise() - d);          // 3xN
+
+        const Eigen::VectorXd normB = forwardB.rowwise().norm();
+        Eigen::VectorXd distDs = forwardD.cwiseAbs().cwiseQuotient(normB);
+
         const int M = bd.rows();
         const int N = pc.cols();
-        Eigen::MatrixX4d forwardH(M + N, 4);
-        int nH = 0;
 
         Eigen::MatrixX4d tangents(N, 4);
         Eigen::VectorXd distRs(N);
 
-        for (int i = 0; i < N; i++)
-        {
+        constexpr double tiny_eps = 1e-14;
+
+        for (int i = 0; i < N; ++i) {
             distRs(i) = forwardPC.col(i).norm();
-            tangents(i, 3) = -distRs(i);
-            tangents.block<1, 3>(i, 0) = forwardPC.col(i).transpose() / distRs(i);
+            if (distRs(i) < tiny_eps) {
+                // Avoid division by zero or near zero norm
+                tangents(i, 3) = 0.0;
+                tangents.block<1, 3>(i, 0) = Eigen::RowVector3d::Zero();
+                distRs(i) = std::numeric_limits<double>::infinity(); // exclude from min search
+            } else {
+                tangents(i, 3) = -distRs(i);
+                tangents.block<1, 3>(i, 0) = forwardPC.col(i).transpose() / distRs(i);
+            }
         }
 
-        Eigen::Matrix<uint8_t, -1, 1> bdFlags = Eigen::Matrix<uint8_t, -1, 1>::Constant(M, 1);
-        Eigen::Matrix<uint8_t, -1, 1> pcFlags = Eigen::Matrix<uint8_t, -1, 1>::Constant(N, 1);
+        Eigen::VectorXi bdFlags = Eigen::VectorXi::Ones(M);
+        Eigen::VectorXi pcFlags = Eigen::VectorXi::Ones(N);
 
-        nH = 0;
+        Eigen::MatrixX4d forwardH(M + N, 4);
 
+        int nH = 0;
         bool completed = false;
-        int bdMinId = 0, pcMinId = 0;
+
+        int bdMinId = 0;
         double minSqrD = distDs.minCoeff(&bdMinId);
-        double minSqrR = INFINITY;
-        if (distRs.size() != 0)
-        {
-            minSqrR = distRs.minCoeff(&pcMinId);
-        }
-        for (int i = 0; !completed && i < (M + N); ++i)
-        {
-            if (minSqrD < minSqrR)
-            {
+
+        int pcMinId = -1;
+        double minSqrR = (N > 0) ? distRs.minCoeff(&pcMinId) : std::numeric_limits<double>::infinity();
+
+        while (!completed && nH < M + N) {
+            if (minSqrD < minSqrR) {
                 forwardH.block<1, 3>(nH, 0) = forwardB.row(bdMinId);
                 forwardH(nH, 3) = forwardD(bdMinId);
                 bdFlags(bdMinId) = 0;
-            }
-            else
-            {
+            } else {
                 forwardH.row(nH) = tangents.row(pcMinId);
                 pcFlags(pcMinId) = 0;
             }
 
             completed = true;
-            minSqrD = INFINITY;
-            for (int j = 0; j < M; ++j)
-            {
-                if (bdFlags(j))
-                {
+            minSqrD = std::numeric_limits<double>::infinity();
+            for (int j = 0; j < M; ++j) {
+                if (bdFlags(j) && distDs(j) < minSqrD) {
+                    bdMinId = j;
+                    minSqrD = distDs(j);
                     completed = false;
-                    if (minSqrD > distDs(j))
-                    {
-                        bdMinId = j;
-                        minSqrD = distDs(j);
-                    }
                 }
             }
-            minSqrR = INFINITY;
-            for (int j = 0; j < N; ++j)
-            {
-                if (pcFlags(j))
-                {
-                    if (forwardH.block<1, 3>(nH, 0).dot(forwardPC.col(j)) + forwardH(nH, 3) > -epsilon)
-                    {
+
+            minSqrR = std::numeric_limits<double>::infinity();
+            for (int j = 0; j < N; ++j) {
+                if (pcFlags(j)) {
+                    if (forwardH.block<1, 3>(nH, 0).dot(forwardPC.col(j)) + forwardH(nH, 3) > -epsilon) {
                         pcFlags(j) = 0;
-                    }
-                    else
-                    {
+                    } else if (distRs(j) < minSqrR) {
+                        pcMinId = j;
+                        minSqrR = distRs(j);
                         completed = false;
-                        if (minSqrR > distRs(j))
-                        {
-                            pcMinId = j;
-                            minSqrR = distRs(j);
-                        }
                     }
                 }
             }
+
             ++nH;
         }
 
         hPoly.resize(nH, 4);
-        for (int i = 0; i < nH; ++i)
-        {
+        for (int i = 0; i < nH; ++i) {
             hPoly.block<1, 3>(i, 0) = forwardH.block<1, 3>(i, 0) * forward;
             hPoly(i, 3) = forwardH(i, 3) - hPoly.block<1, 3>(i, 0).dot(d);
         }
 
         return true;
     }
+
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////
