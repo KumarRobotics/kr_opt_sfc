@@ -15,7 +15,7 @@ Seed:                       5
 DistRange:                  [10, 100]
 
 sfc_cover_opt:
-  max_iter: 5
+  max_iter: 10
   max_inner_iter: 1
   max_time: 1.0
   progress: 4.0

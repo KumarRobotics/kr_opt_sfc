@@ -4,7 +4,7 @@
   <arg name="map_frame_id" default="odom"/>
   <arg name="map_size_x" default="20"/>
   <arg name="map_size_y" default="10"/>
-  <arg name="map_size_z" default="1.0"/>
+  <arg name="map_size_z" default="1.5"/>
   <arg name="map_x_origin" default="-10.0"/>
   <arg name="map_y_origin" default="-5.0"/>
   <arg name="map_z_origin" default="-0.05"/>
@@ -55,10 +55,10 @@
 
     <!-- for multi-map reader, set folder path and use_folder as true -->
     <param name="folder_path" value="$(find param_env)/data/img/maze/"/>
-    <param name="use_folder"  value="true"/>
+    <param name="use_folder"  value="false"/>
 
     <!-- mode 1 eg -->
-    <param name="file_path" value="$(find param_env)/data/img/maze/maze8.png"/>
+    <param name="file_path" value="$(find param_env)/data/img/maze/maze48.png"/>
     <param name="img/negate" value="0"/>
     <param name="img/occ_th" value="0.6"/>
 

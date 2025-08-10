@@ -107,6 +107,12 @@ roslaunch opt_sfc sfc.launch
 
 In "kr_opt_sfc/src/opt_sfc/config/sfc.yaml", change paramters to test different performance. The default is debug mode to show each iteration.
 
+<p align="center">
+  <img src="docs/3d1.png" width = "300" height = "170"/>
+  <img src="docs/3d2.png" width = "300" height = "170"/>
+</p>
+
+
 
 ### 4. Run in 2D Image Map 
 
@@ -122,8 +128,8 @@ roslaunch opt_sfc sfc2d.launch
 You can use the format specified in the kr_param_map to create the map from image inputs.
 
 <p align="center">
-  <img src="docs/1.png" width = "300" height = "170"/>
-  <img src="docs/2.png" width = "300" height = "170"/>
+  <img src="docs/2d1.png" width = "300" height = "170"/>
+  <img src="docs/2d2.png" width = "300" height = "170"/>
 </p>
 
 

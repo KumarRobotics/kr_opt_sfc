@@ -18,15 +18,15 @@ if current_lines:
     polygons.append(current_lines)
 
 # Compute and plot polygons
-plt.figure(figsize=(8,8))
+plt.figure(figsize=(8,4))
 for poly in polygons:
     poly = np.array(poly)
     vertices = utils.hrep_to_vertices_2d(poly)
     if vertices is not None:
         plt.fill(vertices[:,0], vertices[:,1], alpha=0.4, edgecolor='black')
 plt.axis('equal')
-plt.xlabel("X")
-plt.ylabel("Y")
+plt.xlabel("x")
+plt.ylabel("y")
 plt.title("Polygons from Half-Plane Representation")
 plt.grid(True)
 plt.show()

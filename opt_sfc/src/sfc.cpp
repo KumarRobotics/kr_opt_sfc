@@ -256,17 +256,23 @@ public:
                 sfc_utils::projectHalfspacesTo2D(hpolys, projected, Points);
 
                 // Save projected to a .txt
-                // use ros file path
-                namespace fs = std::filesystem;
-                fs::path current_path = fs::current_path();
-                const std::string filename = current_path / "projected_2d.txt";
-                std::ofstream ofs(filename);
+                // const std::string filename = "projected_2d.txt";
+                // std::ofstream ofs(filename);
 
-                for (const auto &hull : projected) {
-                    ofs << hull << std::endl;
-                }
+                // if (!ofs) {
+                //     std::cerr << "Error: Could not open file for writing: " << filename << std::endl;
+                // }
 
-                ofs.close();
+                // for (const auto &hull : projected) {
+                //     ofs << hull << std::endl;
+                //     // add a blank line between entries
+                //     ofs << std::endl;
+                // }
+
+                // ofs.close();
+
+                // std::cout << "Projected 2D Polytope saved to " << filename << std::endl;
+
                 std::cout << "Projected 2D Polytope: " << projected.size() << std::endl;
                 visualizer.visualizePolytope2D(Points);
             }else
