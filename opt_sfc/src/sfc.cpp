@@ -121,7 +121,7 @@ public:
         int sizeZ = (mapBound[5] - mapBound[4]) / voxelWidth;
 
         const Eigen::Vector3i xyz(sizeX, sizeY, sizeZ);
-        const Eigen::Vector3d offset(mapBound[0], mapBound[2], use2D ? 0.0 : mapBound[4]);
+        const Eigen::Vector3d offset(mapBound[0], mapBound[2], mapBound[4]);
 
         voxelMap = voxel_map::VoxelMap(xyz, offset, voxelWidth);
 
