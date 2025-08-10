@@ -53,7 +53,7 @@ docker build --build-arg user_name=$(whoami) -t opt_sfc .
 
 Mount your local repo inside the container to `/home/<username>/opt_sfc_ws/src/kr_opt_sfc` for development.
 
-```bash
+```
 docker run -it \
     -v $(pwd)/kr_opt_sfc:/home/$(whoami)/opt_sfc_ws/src/kr_opt_sfc \
     --env="DISPLAY" \
@@ -66,11 +66,10 @@ docker run -it \
 
 Build and launch your ROS workspace:
 
-```bash
+```
 catkin build
 source devel/setup.bash
 roslaunch opt_sfc sfc.launch
-```aunch opt_sfc sfc.launch
 ```
 
 ## Run from Source
