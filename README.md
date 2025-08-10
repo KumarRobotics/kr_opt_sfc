@@ -53,7 +53,7 @@ docker build --build-arg user_name=$(whoami) -t opt_sfc .
 
 Mount your local repo inside the container to `/home/<username>/opt_sfc_ws/src/kr_opt_sfc` for development.
 
-```
+```bash
 docker run -it \
     -v $(pwd)/kr_opt_sfc:/home/$(whoami)/opt_sfc_ws/src/kr_opt_sfc \
     --env="DISPLAY" \
@@ -66,10 +66,11 @@ docker run -it \
 
 Build and launch your ROS workspace:
 
-```
+```bash
 catkin build
 source devel/setup.bash
 roslaunch opt_sfc sfc.launch
+```aunch opt_sfc sfc.launch
 ```
 
 ## Run from Source
@@ -105,6 +106,29 @@ roslaunch opt_sfc sfc.launch
 ```
 
 In "kr_opt_sfc/src/opt_sfc/config/sfc.yaml", change paramters to test different performance. The default is debug mode to show each iteration.
+
+
+### 4. Run in 2D Image Map 
+
+
+To generate a 2D corridor, you can launch the 2D projection with
+
+
+```
+source devel/setup.bash
+roslaunch opt_sfc sfc2d.launch
+```
+
+You can use the format specified in the kr_param_map to create the map from image inputs.
+
+<p align="center">
+  <img src="docs/1.png" width = "300" height = "170"/>
+  <img src="docs/2.png" width = "300" height = "170"/>
+</p>
+
+
+
+
 
 ## Maintaince
 
