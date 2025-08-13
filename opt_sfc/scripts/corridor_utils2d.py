@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import HalfspaceIntersection, ConvexHull
 from scipy.optimize import linprog
+import matplotlib.pyplot as plt
 
 def find_feasible_point_2d(halfspaces, margin=0.01):
     """
@@ -53,6 +54,24 @@ def hrep_to_vertices_2d(halfspaces):
     hull = ConvexHull(hs.intersections)
     return hs.intersections[hull.vertices]
 
+def plot_polygons(polygons):
+    # Compute and plot polygons
+    plt.figure(figsize=(8,4))
+    for poly in polygons:
+        poly = np.array(poly)
+        vertices = hrep_to_vertices_2d(poly)
+        if vertices is not None:
+            plt.fill(vertices[:,0], vertices[:,1], alpha=0.4, edgecolor='black')
+    plt.axis('equal')
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("Polygons from Half-Plane Representation")
+    plt.grid(True)
+    plt.show()
+
+
+
+
 # Example usage
 if __name__ == "__main__":
     # Square: x >= 0, x <= 1, y >= 0, y <= 1
@@ -64,6 +83,4 @@ if __name__ == "__main__":
     ])
     vertices = hrep_to_vertices_2d(halfspaces)
     print(vertices)
-
-
-    
+    plot_polygons([halfspaces])

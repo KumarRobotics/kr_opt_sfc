@@ -18,6 +18,35 @@
 #include <iostream>
 #include <dirent.h>
 
+
+#include "H5Cpp.h"
+using namespace H5;
+namespace fs = std::filesystem;
+
+inline void writeVector3List(Group &where, const std::string &dsetName,
+                             const std::vector<Eigen::Vector3d> &v) {
+    if (v.empty()) return;
+    hsize_t dims[2] = { static_cast<hsize_t>(v.size()), 3 };
+    DataSpace space(2, dims);
+    DataSet dset = where.createDataSet(dsetName, PredType::NATIVE_DOUBLE, space);
+    std::vector<double> buf; buf.reserve(v.size()*3);
+    for (const auto &p : v) { buf.push_back(p.x()); buf.push_back(p.y()); buf.push_back(p.z()); }
+    dset.write(buf.data(), PredType::NATIVE_DOUBLE);
+}
+
+inline void writeEigenMatrix(Group &where, const std::string &dsetName,
+                             const Eigen::MatrixXd &mat) {
+    if (mat.size() == 0) return;
+    hsize_t dims[2] = { static_cast<hsize_t>(mat.rows()),
+                        static_cast<hsize_t>(mat.cols()) };
+    DataSpace space(2, dims);
+    DataSet dset = where.createDataSet(dsetName, PredType::NATIVE_DOUBLE, space);
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rowMajor = mat;
+    dset.write(rowMajor.data(), PredType::NATIVE_DOUBLE);
+}
+
+
+
 class SFCServer
 {
 private:
@@ -56,6 +85,10 @@ private:
 
     bool use2D = false;
 
+    std::string sfc_dataset_path;
+    std::unique_ptr<H5::H5File> file;
+    bool save_sfc = false;
+
 
 public:
     SFCServer(ros::NodeHandle &nh_, ros::NodeHandle &nh_private)
@@ -79,6 +112,23 @@ public:
         visualizer = sfc_vis(nh_private, 0);
         opt_convex_cover.setVisualizer(visualizer);
 
+        //save the corridor, route, and start and end point into a dataset, in .h5 format
+        nh_private.getParam("sfc_dataset_path", sfc_dataset_path);
+        nh_private.getParam("save_sfc", save_sfc);
+        std::cout << "SFC Dataset Path: " << sfc_dataset_path << std::endl;
+
+        if (save_sfc)
+        {
+            // Ensure directory exists
+            fs::create_directories(sfc_dataset_path);
+            fs::path datasetFilePath = fs::path(sfc_dataset_path) / ("dataset_" + std::to_string(testNum) + ".h5");
+
+            // Open HDF5 file: delete the file if it exist
+            if (fs::exists(datasetFilePath)) {
+                fs::remove(datasetFilePath);
+            }
+            file = std::make_unique<H5::H5File>(datasetFilePath.string(), H5F_ACC_TRUNC);
+        }
 
         Eigen::Vector3d map_size;
         mapBound.resize(6);
@@ -99,8 +149,19 @@ public:
         mapSub = nh.subscribe(mapTopic, 1, &SFCServer::mapCallBack, this,
                               ros::TransportHints().tcpNoDelay());
 
-        targetSub = nh.subscribe(targetTopic, 1, &SFCServer::targetCallBack, this,
-                                    ros::TransportHints().tcpNoDelay()); 
+        if (mode == 0)
+        {
+            targetSub = nh.subscribe(targetTopic, 1, &SFCServer::targetCallBack, this,
+                                       ros::TransportHints().tcpNoDelay());
+        }
+        else
+        {
+            // Auto-generate with a timer (store as a class member!)
+            timer = nh.createTimer(ros::Duration(0.05),
+                                        &SFCServer::trialTimerCallback,
+                                        this);
+            std::cout << "Benchmark mode activated, timer started." << std::endl;
+        }
 
 
         std::cout << "seed: " << seed << std::endl;
@@ -113,6 +174,39 @@ public:
         std::cout << "Planner Server Initialized !!!\n";
     }
 
+    inline void saveSampleH5(const int index, 
+                            const std::vector<Eigen::Vector3d> &route,
+                            const std::vector<Eigen::MatrixX4d> &hpolys)
+    {
+        std::cout << "[HDF5] Saving trial " << index << "...\n";
+        if (!file) {
+            std::cerr << "[HDF5] Global file not initialized!\n";
+            return;
+        }
+
+        // Group name at the file root: "trial_000123"
+        std::ostringstream oss; 
+        oss << "trial_" << std::setw(6) << std::setfill('0') << index;
+        const std::string trialGroupName = oss.str();
+
+        // Create the trial group and a "polys" subgroup
+        H5::Group gTrial = file->createGroup(trialGroupName);
+        H5::Group gPolys  = file->createGroup(trialGroupName + "/polys");
+
+        // Write route
+        writeVector3List(gTrial, "route", route);
+
+        // Write polytopes
+        for (size_t i = 0; i < hpolys.size(); ++i) {
+            std::ostringstream pname;
+            pname << "poly_" << std::setw(4) << std::setfill('0') << i;
+            writeEigenMatrix(gPolys, pname.str(), hpolys[i]);
+        }
+
+        std::cout << "[HDF5] Saved " << trialGroupName 
+                << " (" << route.size() << " route pts, "
+                << hpolys.size() << " polys) into global file.\n";
+    }
 
     inline void mapCallBack(const sensor_msgs::PointCloud2::ConstPtr &msg)
     {
@@ -149,19 +243,33 @@ public:
 
         int dilateIterations = std::ceil(dilateRadius / voxelMap.getScale());
 
-        std::cout << "Dilate Voxel Map with radius: " << dilateRadius
-                  << ", iterations: " << dilateIterations << std::endl;
-
         voxelMap.dilate(dilateIterations);
+
+        std::cout << "Map Received, size: "
+                  << voxelMap.getSize().transpose()
+                  << ", origin: " << voxelMap.getOrigin().transpose()
+                  << ", resolution: " << voxelMap.getScale()
+                  << std::endl;
 
         mapInitialized = true;
         map_id += 1;
+    
+    }
 
-        // call oneSampleTest
-        int loopCount = (mode == 1) ? 20 : testNum;
-        for (int i = 0; i < loopCount; i++)
+    inline void trialTimerCallback(const ros::TimerEvent &)
+    {   
+        if (mode == 1 && mapInitialized)
         {
-            oneSampleTest();
+            if (curTestNum < testNum)
+            {
+                oneSampleTest();
+            }
+            if (curTestNum == testNum)
+            {
+                std::cout << "All Tests Finished !!!" << std::endl;
+                curTestNum += 1;
+                return;
+            }
         }
     }
 
@@ -172,7 +280,7 @@ public:
         {
             if (curTestNum == testNum)
             {
-                ROS_INFO("All Tests Finished !!!\n");
+                std::cout << "All Tests Finished !!!" << std::endl;
                 curTestNum += 1;
                 return;
             }
@@ -246,7 +354,7 @@ public:
 
             auto t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> fp_ms = t2 - t1;
-            std::cout << "convexCover time: " << fp_ms.count() << std::endl;
+            std::cout << "Total pipeline time: " << fp_ms.count() << std::endl;
 
             if (use2D == true)
             {
@@ -296,9 +404,29 @@ public:
             if (valid == false)
             {
                 std::cout << "No valid corridor found !!!\n";
+                return;
             }
 
             curTestNum += 1;
+
+            if (save_sfc)
+            {
+                // -----------------------------------------------------------
+                // save hpolys, and route in .h5
+                    try {
+                        // ensure directory exists (you already do this in ctor)
+                        // build/save one sample per successful plan
+                    saveSampleH5(
+                        curTestNum,         // current sample id
+                        route,              // planned waypoint list
+                        hpolys             // corridor as half-spaces (Mi x 4 each)
+                    );
+                } catch (H5::Exception &e) {
+                    e.printErrorStack();
+                    ROS_WARN("Failed to save .h5 sample");
+                }
+            }
+
         }
 
         return;
@@ -358,22 +486,30 @@ public:
         if (startGoal.size() >= 2)
             startGoal.clear();
 
-        const int maxAttempts = 50;
-        for (int attempts = 0; attempts < maxAttempts && startGoal.size() < 2; ++attempts)
+        for (int attempts = 0; attempts < 50 && startGoal.size() < 2; ++attempts)
         {                
             Eigen::Vector3d goal(
                 rand_x_(eng_),
                 rand_y_(eng_),
-                use2D ? 0.0 : rand_z_(eng_)
+                rand_z_(eng_)
             );
+
+            //std::cout << "Attempt " << attempts << ": goal = " << goal.transpose() << std::endl;
 
             // Skip if voxel is occupied
             if (voxelMap.query(goal) != 0)
+            {
+                //std::cout << "Voxel occupied, skipping..." << std::endl;
                 continue;
+            }
 
             // Skip if goal too close to the start
             if (!startGoal.empty() && (goal - startGoal[0]).norm() < distRange[0])
+            {
+                //std::cout << "Goal too close to start, skipping..." << std::endl;
                 continue;
+            }
+                
 
             startGoal.emplace_back(goal);
         }
@@ -381,6 +517,8 @@ public:
         // Run the plan if both points were found
         if (startGoal.size() == 2)
             plan(voxelMap);
+        else
+            ROS_WARN("Failed to find two valid start/goal points after max attempts");
     }
 };
 

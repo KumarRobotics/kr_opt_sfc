@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import utils
+import corridor_utils2d
 
 # Read polygons
 polygons = []
@@ -17,16 +17,5 @@ with open("projected_2d.txt") as f:
 if current_lines:
     polygons.append(current_lines)
 
-# Compute and plot polygons
-plt.figure(figsize=(8,4))
-for poly in polygons:
-    poly = np.array(poly)
-    vertices = utils.hrep_to_vertices_2d(poly)
-    if vertices is not None:
-        plt.fill(vertices[:,0], vertices[:,1], alpha=0.4, edgecolor='black')
-plt.axis('equal')
-plt.xlabel("x")
-plt.ylabel("y")
-plt.title("Polygons from Half-Plane Representation")
-plt.grid(True)
-plt.show()
+
+corridor_utils2d.plot_polygons(polygons)

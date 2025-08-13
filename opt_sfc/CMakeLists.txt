@@ -17,11 +17,13 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 find_package(ompl REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS C CXX)
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
     ${OMPL_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
+    ${HDF5_INCLUDE_DIRS}
     include
 )
 
@@ -35,7 +37,10 @@ add_executable(sfc
 target_link_libraries(sfc
   ${catkin_LIBRARIES}
   ${OMPL_LIBRARIES}
+  ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES}
   )
 
 set_property(TARGET sfc 
   PROPERTY CXX_STANDARD 17)
+
+  

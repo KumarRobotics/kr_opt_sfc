@@ -105,7 +105,7 @@ source devel/setup.bash
 roslaunch opt_sfc sfc.launch
 ```
 
-In "kr_opt_sfc/src/opt_sfc/config/sfc.yaml", change paramters to test different performance. The default is debug mode to show each iteration.
+In "kr_opt_sfc/src/opt_sfc/config/sfc.yaml", change paramters to test different performance. The default is normal mode, if you want to show each iteration, set "sfc_cover_opt:debug=true".
 
 <p align="center">
   <img src="docs/3d1.png" width = "300" height = "170"/>
@@ -127,13 +127,79 @@ roslaunch opt_sfc sfc2d.launch
 
 You can use the format specified in the kr_param_map to create the map from image inputs.
 
+In opt_sfc/scripts, there's an example saved in "projected_2d.txt", you can run
+
+```
+python visualizer2d.py 
+
+```
+
+to visualize it.
+
 <p align="center">
   <img src="docs/2d1.png" width = "300" height = "170"/>
   <img src="docs/2d2.png" width = "300" height = "170"/>
 </p>
 
 
+## Dataset Generation
 
+
+You can save the corridor and initial route data for further planning or evaluation.
+
+### 1. Install 
+
+
+```
+sudo apt-get install libhdf5-dev
+pip install h5py
+```
+
+### 2. Set your path and set "save_sfc" as true
+
+```
+  <arg name="sfc_dataset_path" default="$(find opt_sfc)/dataset/"/>
+  <arg name="save_sfc" default='true'/>
+```
+
+### 3. Run
+
+```
+source devel/setup.bash
+roslaunch opt_sfc sfc.launch
+```
+
+If you want to run different random map, set "auto_change" as true:
+
+```
+    <param name="map/auto_change"    value="true"/>
+```
+
+### 4. Visualize
+
+In opt_sfc/scripts, you can set the dataset path and run
+
+```
+python read_dataset.py 
+```
+
+to visualize the polytopes.
+
+### 5. Dataset Structure (.h5)
+
+
+Each trial is stored under:
+
+```
+/trial_000001/   
+├── route          # Nx3 float64 matrix of 3D waypoints
+└── polys/
+├── poly_0000 # Mx4 float64 matrix (half-spaces: ax + by + cz + d ≤ 0)
+├── poly_0001 
+├── ...
+...
+/trial_<index>/
+```
 
 
 ## Maintaince

@@ -8,17 +8,21 @@ OptOrder:                   3 # 3 for jerk, 4 for snap
 
 InflateRange:               2.0
 
-TestNum:                    1
+TestNum:                    10
 
 Seed:                       5
 
 DistRange:                  [10, 100]
 
+Mode:                       1
+# 0 is select start and the end point
+# 1 is benchmark mode
+
 sfc_cover_opt:
   max_iter: 10
   max_inner_iter: 1
   max_time: 1.0
-  progress: 4.0
+  progress: 3.5
   debug: false
   parallel: true
   smooth_mu: 1.0e-2

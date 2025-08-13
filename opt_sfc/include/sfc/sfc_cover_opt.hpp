@@ -224,7 +224,7 @@ namespace sco
                 }
             }
             visualizeEllipsoids(cur_ellips);
-            std::cout << "total time is " << (ros::Time::now() - start).toSec() << std::endl;
+            std::cout << "corridor generation time is " << (ros::Time::now() - start).toSec() << std::endl;
             std::vector<Eigen::Vector3d> wps;
             for (int i = 0; i < cur_wps.cols(); i++)
             {

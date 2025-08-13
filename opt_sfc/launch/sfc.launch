@@ -3,11 +3,11 @@
 
   <arg name="map_frame_id" default="odom"/>
   <arg name="map_size_x" default="20"/>
-  <arg name="map_size_y" default="10"/>
+  <arg name="map_size_y" default="20"/>
   <arg name="map_size_z" default="3"/>
   <arg name="map_x_origin" default="-10.0"/>
-  <arg name="map_y_origin" default="-5.0"/>
-  <arg name="map_z_origin" default="-0.1"/>
+  <arg name="map_y_origin" default="-10.0"/>
+  <arg name="map_z_origin" default="0.0"/>
 
 
   <arg name="cloud" default="/structure_map/global_gridmap"/>
@@ -18,6 +18,9 @@
 	<group if="$(arg if_visualize)">
 		<include file="$(find opt_sfc)/launch/vis_sfc.launch"/>
 	</group>
+
+  <arg name="sfc_dataset_path" default="$(find opt_sfc)/dataset/"/>
+  <arg name="save_sfc" default='false'/>
 
 
   <node pkg ="param_env" name ="structure_map" type ="structure_map" output = "screen">    
@@ -39,7 +42,7 @@
     <param name="map/auto_change"    value="false"/>
 
     <!-- total obstacle ratios -->
-    <param name="params/cylinder_ratio" value="0.12" type="double"/>
+    <param name="params/cylinder_ratio" value="0.05" type="double"/>
     <param name="params/circle_ratio"   value="0.01" type="double"/> <!-- 0.1 x others -->
     <param name="params/gate_ratio"     value="0.012" type="double"/> <!-- 0.1 x others -->
     <param name="params/ellip_ratio"    value="0.05" type="double"/>
@@ -79,6 +82,9 @@
 
     <param name="map/resolution"  value="0.1"/>        
     <param name="map/inflate_radius" value="0.2"/> 
+
+    <param name="sfc_dataset_path" value="$(arg sfc_dataset_path)"/>
+    <param name="save_sfc" value="$(arg save_sfc)"/>
 
   </node>
 

@@ -100,17 +100,17 @@ Visualization Manager:
       Value: true
     - Class: rviz/Group
       Displays:
-        - Alpha: 0.10000000149011612
+        - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.8499999046325684
-            Min Value: -0.05000000074505806
+            Max Value: 2.950000047683716
+            Min Value: 0.05000000074505806
             Value: true
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
           Color: 186; 189; 182
-          Color Transformer: FlatColor
+          Color Transformer: AxisColor
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
@@ -122,7 +122,7 @@ Visualization Manager:
           Selectable: false
           Size (Pixels): 3
           Size (m): 0.10000000149011612
-          Style: Squares
+          Style: Boxes
           Topic: /structure_map/global_gridmap
           Unreliable: true
           Use Fixed Frame: true
@@ -228,7 +228,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 18.74580955505371
+      Distance: 29.49689483642578
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -246,7 +246,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: drone1
-      Yaw: 4.713178634643555
+      Yaw: 4.708181381225586
     Saved:
       - Class: rviz/ThirdPersonFollower
         Distance: 4.048277378082275
@@ -385,4 +385,4 @@ Window Geometry:
     collapsed: false
   Width: 2772
   X: 606
-  Y: 80
+  Y: 54
