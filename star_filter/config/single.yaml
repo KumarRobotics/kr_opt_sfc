@@ -1,0 +1,11 @@
+# Range (m) used to bound the local point cloud around the query point, and
+# as the star-filter radius passed to Star::Corridor.
+InflateRange:                3.0
+
+# Length (m) of the synthetic path segment [a, b] used to seed FIRI, with
+# a = clicked point and b = a + (0, 0, PathOffsetZ).
+PathOffsetZ:                 1.0
+
+# Max FIRI inflation iterations per polytope.
+MaxIter:                     5
+TargetTopic:                 '/move_base_simple/goal'

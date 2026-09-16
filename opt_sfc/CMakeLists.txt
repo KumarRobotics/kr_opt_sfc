@@ -28,6 +28,7 @@ include_directories(
 )
 
 catkin_package(
+  INCLUDE_DIRS include
   CATKIN_DEPENDS
   geometry_msgs gcopter)
 

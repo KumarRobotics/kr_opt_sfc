@@ -1,0 +1,11 @@
+# RunHz is the rate at which a new polytope is re-computed around the last
+# clicked query point.
+RunHz:                       5.0
+
+# Range (m) used both to inflate the local query bound and to bound the
+# star-shaped kernel search around the current seed point.
+InflateRange:                3.0
+
+# Fallback seed point (x, y, z) used before the first "2D Nav Goal" click.
+Goal:                        [0.0, 0.0, 1.0]
+TargetTopic:                 '/move_base_simple/goal'
