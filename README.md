@@ -1,4 +1,4 @@
-# Convex Cover of Collision-free Space for Trajectory Generation
+# Convex Cover of Collision-free Space
 
 <p align="left">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD-blue.svg" alt="License"></a>
@@ -12,7 +12,7 @@
   <img src="docs/mp_01.png" width="600"/>
 </p>
 
-Optimization approximation of collision-free space as convex polytopes, for use as safe flight corridors in trajectory generation.
+Optimization of collision-free space as convex polytopes, for use as safe flight corridors in trajectory generation.
 
 ## Table of Contents
 
@@ -26,13 +26,6 @@ Optimization approximation of collision-free space as convex polytopes, for use 
 - [Dataset Generation](#dataset-generation)
 - [Acknowledgements](#acknowledgements)
 - [Maintenance](#maintenance)
-
-## Packages
-
-| Package | Paper | Depends on | Description |
-| --- | --- | --- | --- |
-| [`opt_sfc`](opt_sfc) | RA-L 2025 | GCOPTER, OMPL | Optimization-based convex cover of collision-free space along a path/trajectory. |
-| [`star_filter`](star_filter) | WAFR 2026 | `opt_sfc` | Online, receding-horizon star-shaped convex cover (`RobustStarManager`), robust to sensor noise. |
 
 ## Related Papers
 
@@ -183,32 +176,25 @@ python visualizer2d.py
 
 ### Run star_filter
 
-`star_filter` (STAR-Filter, WAFR 2026) ships two live ROS nodes built on the same
-`Star::Corridor` core. Both open rviz with a static map from `param_env`, and set the query
+Open rviz with a static map from `param_env`, and set the query
 point interactively with rviz's **2D Nav Goal** tool (publishes to `TargetTopic`, default
 `/move_base_simple/goal`).
 
-- **`single`** (`single.launch`, the main pipeline) -- calls `Star::Corridor::firiFiltered`
-  directly to produce one safe-flight-corridor polytope per click (star-shaped filtering as a
-  fast pre-filter, then FIRI inflation between the clicked point and a small offset above it):
+- **`single`** (`single.launch`, the main pipeline) -- produce one safe-flight-corridor polytope:
 
   ```bash
   roslaunch star_filter single.launch
   ```
 
-  Parameters (inflate range, path offset, FIRI iterations, target topic) are in
-  `star_filter/config/single.yaml`.
+  Parameters are in `star_filter/config/single.yaml`.
 
-- **`sconvex`** (`sconvex.launch`) -- runs `RobustStarManager`, an online roadmap of star-shaped
-  regions (`star_mesh` + `star_kernel`) that persists and refines across clicks, re-running at
-  `RunHz` around the last clicked point until you click a new one:
+- **`sconvex`** (`sconvex.launch`) -- online roadmap of star-shaped regions:
 
   ```bash
   roslaunch star_filter sconvex.launch
   ```
 
-  Parameters (rate, inflate range, fallback seed point, target topic) are in
-  `star_filter/config/sconvex.yaml`.
+  Parameters are in`star_filter/config/sconvex.yaml`.
 
 ## Dataset Generation
 
